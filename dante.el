@@ -42,7 +42,6 @@
 (require 'cl-lib)
 (require 'dash)
 (require 'f)
-(require 'flycheck)
 (require 'flymake)
 (require 's)
 (require 'xref)
@@ -339,6 +338,7 @@ and over."
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Flycheck checker
+(with-eval-after-load 'flycheck
 
 (defun dante-check (checker cont)
   "Run a check with CHECKER and pass the status onto CONT."
@@ -386,6 +386,7 @@ CHECKER and BUFFER are added if the error is in TEMP-FILE."
                                                       (dante-canonicalize-path file))
                                              (dante-buffer-file-name buffer)
                                            file))))))
+)
 
 (defun dante-parse-error-location (string)
   "Parse the line/col numbers from the error in STRING."
