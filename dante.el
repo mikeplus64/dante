@@ -296,9 +296,7 @@ When the universal argument INSERT is non-nil, insert the type in the buffer."
 (define-minor-mode dante-info-mode
   "Minor mode for customizing behavior in help windows."
   :lighter "dante-info"
-  (haskell-ts-mode))
-  ;; (setq font-lock-defaults '(haskell-font-lock-keywords))
-  ;; (font-lock-mode))
+  (haskell-mode))
 
 (defun dante-info (ident)
   "Get the info about the IDENT at point."
