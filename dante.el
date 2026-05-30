@@ -124,6 +124,17 @@ Consider setting this variable as a directory variable."
 
 (put 'dante-methods 'safe-local-variable #'listp)
 
+(defun dante-target-prompt ()
+  "Set `dante-target` interactively."
+  (interactive)
+  (let*
+      ((cabal-file (dante-cabal-find-file))
+       (cabal-package (if cabal-file (replace-regexp-in-string ".cabal$" "" (file-name-nondirectory cabal-file)) ""))
+       (cabal-targets (split-string (shell-command-to-string
+                                     (format "cabal-find-components %s"
+                                             (shell-quote-argument cabal-package))))))
+    (completing-read "Choose a cabal component to target: " cabal-targets nil t)))
+
 (defun dante-initialize-method ()
   "Initialize the method used to run GHCi.
 Set `dante-project-root', `dante-repl-command-line' and
@@ -265,19 +276,29 @@ If `haskell-mode' is not loaded, just return EXPRESSION."
   (lcr-spawn
     (let ((info (lcr-call dante-async-call (format ":doc %s" ident))))
       (with-help-window (help-buffer)
-        (princ info)))))
+        (with-current-buffer (help-buffer)
+          (insert info)
+          (dante-info-mode))))))
 
 (defun dante-type-at (insert)
   "Get the type of the thing or selection at point.
 When the universal argument INSERT is non-nil, insert the type in the buffer."
   (interactive "P")
   (let ((tap (dante--ghc-subexp (dante-thing-at-point))))
+    (message (format "dante-type-at %S" tap))
     (lcr-spawn
       (lcr-call dante-async-load-current-buffer nil nil)
       (let ((ty (lcr-call dante-async-call (concat ":type-at " tap))))
         (if insert (save-excursion (goto-char (line-beginning-position))
                                    (insert (dante-fontify-expression ty) "\n"))
           (message "%s" (dante-fontify-expression ty)))))))
+
+(define-minor-mode dante-info-mode
+  "Minor mode for customizing behavior in help windows."
+  :lighter "dante-info"
+  (haskell-ts-mode))
+  ;; (setq font-lock-defaults '(haskell-font-lock-keywords))
+  ;; (font-lock-mode))
 
 (defun dante-info (ident)
   "Get the info about the IDENT at point."
@@ -290,10 +311,9 @@ When the universal argument INSERT is non-nil, insert the type in the buffer."
       (help-setup-xref (list #'dante-call-in-buffer (current-buffer) #'dante-info ident)
                        (called-interactively-p 'interactive))
       (with-help-window (help-buffer)
-        (princ (concat (dante-fontify-expression ident)
-                       " in `" origin "'"
-                       "\n\n"
-                       (dante-fontify-expression info)))))))
+        (with-current-buffer (help-buffer)
+          (insert (concat ident " in `" origin "'" "\n\n" info))
+          (dante-info-mode))))))
 
 (defvar-local dante-temp-fingerprint -1
   "The value of `sha1' of source buffer’s contents when the contents were last loaded.")
@@ -361,7 +381,8 @@ process."
 (add-to-list 'flycheck-checkers 'haskell-dante)
 
 (defcustom dante-flycheck-types
-  '(("^warning: \\[-W\\(typed-holes\\|deferred-\\(type-errors\\|out-of-scope-variables\\)\\)\\]" . error)
+  '(("^warning:\\(?: \\[GHC-[0-9]+\\]\\)? \\[-W\\(?:typed-holes\\|deferred-\\(?:type-errors\\|out-of-scope-variables\\)\\)\\]" . error)
+    ("^warning: \\[-W\\(typed-holes\\|deferred-\\(type-errors\\|out-of-scope-variables\\)\\)\\]" . error)
     ("^warning" . warning)
     ("^splicing " . nil)
     ("" . error))
@@ -406,6 +427,7 @@ CHECKER and BUFFER are added if the error is in TEMP-FILE."
 
 (lcr-def dante-complete (prefix)
   (lcr-call dante-async-load-current-buffer nil nil)
+  (message (format "dante-complete %S" prefix))
   (let* ((reply (lcr-call dante-async-call (format ":complete repl %S" prefix)))
          (lines (s-lines reply))
          (common (nth 2 (read (concat "(" (car lines) ")")))))
