@@ -125,15 +125,17 @@ Consider setting this variable as a directory variable."
 (put 'dante-methods 'safe-local-variable #'listp)
 
 (defun dante-target-prompt ()
-  "Set `dante-target` interactively."
+  "Set `dante-target` interactively and restart dante."
   (interactive)
   (let*
       ((cabal-file (dante-cabal-find-file))
        (cabal-package (if cabal-file (replace-regexp-in-string ".cabal$" "" (file-name-nondirectory cabal-file)) ""))
        (cabal-targets (split-string (shell-command-to-string
                                      (format "cabal-find-components %s"
-                                             (shell-quote-argument cabal-package))))))
-    (completing-read "Choose a cabal component to target: " cabal-targets nil t)))
+                                       (shell-quote-argument cabal-package)))))
+       (choice (completing-read "Choose a cabal component to target: " cabal-targets nil t)))
+    (setq-local dante-target choice)
+    (dante-restart)))
 
 (defun dante-initialize-method ()
   "Initialize the method used to run GHCi.
@@ -457,6 +459,7 @@ See ``company-backends'' for the meaning of COMMAND, ARG and _IGNORED."
 
 (with-eval-after-load 'company
   (add-to-list 'company-backends 'dante-company))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Source buffer operations
 
